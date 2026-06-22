@@ -476,6 +476,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
           <RemoteVideo
             screenShareStream={activeStageStream}
             peerId={activeScreenHostId}
+            isLocalScreenOwner={activeScreenHostId === socketService.socket?.id}
           />
 
           {/* Draggable FaceTime Webcams */}

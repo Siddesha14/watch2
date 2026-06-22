@@ -4,11 +4,13 @@ import { Monitor } from 'lucide-react';
 interface RemoteVideoProps {
   screenShareStream: MediaStream | null;
   peerId?: string | null;
+  isLocalScreenOwner?: boolean;
 }
 
 export const RemoteVideo: React.FC<RemoteVideoProps> = ({
   screenShareStream,
-  peerId
+  peerId,
+  isLocalScreenOwner = false
 }) => {
   const screenVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -38,6 +40,7 @@ export const RemoteVideo: React.FC<RemoteVideoProps> = ({
             ref={screenVideoRef}
             autoPlay
             playsInline
+            muted={isLocalScreenOwner}
             className="w-full h-full object-contain bg-black"
           />
           
