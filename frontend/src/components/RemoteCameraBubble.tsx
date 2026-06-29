@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Mic, MicOff, Maximize2, Move, Lock, Unlock, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, Maximize2, Move, Lock, Unlock, RotateCcw, EyeOff } from 'lucide-react';
 
 interface RemoteCameraBubbleProps {
   peerSocketId: string;
@@ -12,6 +12,8 @@ interface RemoteCameraBubbleProps {
   isFocused?: boolean;
   onFocus?: () => void;
   isMobile?: boolean;
+  isHidden?: boolean;
+  onHide?: () => void;
 }
 
 export const RemoteCameraBubble: React.FC<RemoteCameraBubbleProps> = ({
@@ -24,7 +26,9 @@ export const RemoteCameraBubble: React.FC<RemoteCameraBubbleProps> = ({
   index,
   isFocused = false,
   onFocus,
-  isMobile = false
+  isMobile = false,
+  isHidden = false,
+  onHide
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const storageKey = `remoteCameraBubble_${peerSocketId}`;
@@ -511,7 +515,8 @@ export const RemoteCameraBubble: React.FC<RemoteCameraBubbleProps> = ({
         width: `${size.width}px`,
         height: `${size.height}px`,
         position: 'absolute',
-        zIndex: isFocused ? 10000 : 1000
+        zIndex: isFocused ? 10000 : 1000,
+        display: isHidden ? 'none' : 'flex'
       }}
       className={`glass rounded-2xl overflow-hidden shadow-xl flex flex-col border border-white/5 transition-all ${
         isDragging ? 'shadow-purple-500/20 scale-[1.02] cursor-grabbing border-purple-500/30' : ''
@@ -544,6 +549,17 @@ export const RemoteCameraBubble: React.FC<RemoteCameraBubbleProps> = ({
           {username}
         </span>
         <div className="flex items-center gap-1.5 text-gray-400">
+          {onHide && (
+            <button
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={onHide}
+              className="p-0.5 hover:text-rose-400 transition-colors text-gray-400/60 cursor-pointer"
+              title="Hide bubble from stage"
+            >
+              <EyeOff className="w-3 h-3" />
+            </button>
+          )}
+
           <button
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setAspectRatioLocked(!aspectRatioLocked)}

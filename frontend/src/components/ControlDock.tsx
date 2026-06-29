@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff, 
-  MessageSquare, Users, LogOut, Maximize, MoreHorizontal
+  MessageSquare, Users, LogOut, Maximize, MoreHorizontal, Eye
 } from 'lucide-react';
 
 interface ControlDockProps {
@@ -19,6 +19,8 @@ interface ControlDockProps {
   onToggleFullscreen: () => void;
   onLeaveRoom: () => void;
   isMobile?: boolean;
+  cameraBubblesMenuOpen: boolean;
+  onToggleCameraBubblesMenu: () => void;
 }
 
 export const ControlDock: React.FC<ControlDockProps> = ({
@@ -35,7 +37,9 @@ export const ControlDock: React.FC<ControlDockProps> = ({
   onToggleParticipants,
   onToggleFullscreen,
   onLeaveRoom,
-  isMobile = false
+  isMobile = false,
+  cameraBubblesMenuOpen,
+  onToggleCameraBubblesMenu
 }) => {
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -89,6 +93,22 @@ export const ControlDock: React.FC<ControlDockProps> = ({
                   )}
                 </div>
                 <span>Chat {!chatOpen && unreadCount > 0 ? `(${unreadCount})` : ''}</span>
+              </button>
+
+              {/* Toggle Camera Bubbles Menu */}
+              <button
+                onClick={() => {
+                  onToggleCameraBubblesMenu();
+                  setMoreOpen(false);
+                }}
+                className={`p-3 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-95 border flex items-center justify-center gap-2 cursor-pointer text-xs font-medium col-span-2 ${
+                  cameraBubblesMenuOpen
+                    ? 'bg-slate-900 border-indigo-500/30 text-indigo-400 shadow'
+                    : 'bg-slate-800 border-white/5 text-gray-300 hover:bg-slate-700'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                <span>Camera Bubbles</span>
               </button>
 
               {/* Leave Room Button */}
@@ -230,6 +250,19 @@ export const ControlDock: React.FC<ControlDockProps> = ({
 
       {/* Panel Controls & Disconnect */}
       <div className="flex items-center gap-3">
+        {/* Toggle Camera Bubbles Menu */}
+        <button
+          onClick={onToggleCameraBubblesMenu}
+          className={`p-3 rounded-xl transition-all active:scale-90 border cursor-pointer ${
+            cameraBubblesMenuOpen
+              ? 'bg-slate-900 border-indigo-500/30 text-indigo-400 shadow'
+              : 'bg-slate-800 border-white/5 text-gray-300 hover:bg-slate-700'
+          }`}
+          title="Camera Bubbles Visibility"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+
         {/* Toggle Participants List */}
         <button
           onClick={onToggleParticipants}

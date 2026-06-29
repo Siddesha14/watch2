@@ -438,6 +438,7 @@ class WebRTCService {
       if (type === 'screen-video') {
         this.configureScreenVideoSender(existingSender, pc);
       }
+      this.sendMetadataForTrack(track, stream, type);
       return;
     }
 
@@ -448,8 +449,21 @@ class WebRTCService {
       if (type === 'screen-video') {
         this.configureScreenVideoSender(sender, pc);
       }
+      this.sendMetadataForTrack(track, stream, type);
     } catch (err) {
       console.error(`[WEBRTC] Error adding track for ${peerSocketId} (${type}):`, err);
+    }
+  }
+
+  private sendMetadataForTrack(track: MediaStreamTrack, stream: MediaStream, type: InternalTrackType) {
+    const socket = socketService.socket;
+    if (socket && socket.connected) {
+      const rId = (socket as any).roomId;
+      if (rId) {
+        const metadataType = (type === 'screen-audio' || type === 'microphone-audio') ? 'microphone-audio' : type;
+        console.log(`[WEBRTC] Sending track metadata: room=${rId}, trackId=${track.id}, type=${metadataType}`);
+        socketService.sendTrackMetadata(rId, track.id, stream.id, metadataType as TrackType);
+      }
     }
   }
 

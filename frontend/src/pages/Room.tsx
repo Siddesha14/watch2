@@ -88,6 +88,34 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 768);
   const [participantsOpen, setParticipantsOpen] = useState(() => window.innerWidth >= 768);
+
+  const [cameraBubblesMenuOpen, setCameraBubblesMenuOpen] = useState(false);
+  const [hiddenBubbles, setHiddenBubbles] = useState<string[]>(() => {
+    const saved = localStorage.getItem('hiddenBubbles');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const handleToggleHideBubble = (name: string) => {
+    setHiddenBubbles((prev) => {
+      let next;
+      if (prev.includes(name)) {
+        next = prev.filter((n) => n !== name);
+      } else {
+        next = [...prev, name];
+      }
+      localStorage.setItem('hiddenBubbles', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleToggleCameraBubblesMenu = () => {
+    const nextVal = !cameraBubblesMenuOpen;
+    setCameraBubblesMenuOpen(nextVal);
+    if (nextVal && isMobile) {
+      setChatOpen(false);
+      setParticipantsOpen(false);
+    }
+  };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -413,6 +441,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
       handleClearUnread();
       if (isMobile) {
         setParticipantsOpen(false);
+        setCameraBubblesMenuOpen(false);
       }
     }
   };
@@ -422,6 +451,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
     setParticipantsOpen(nextParticipantsOpen);
     if (nextParticipantsOpen && isMobile) {
       setChatOpen(false);
+      setCameraBubblesMenuOpen(false);
     }
   };
 
@@ -530,6 +560,8 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
               isFocused={focusedBubbleId === 'local'}
               onFocus={() => setFocusedBubbleId('local')}
               isMobile={isMobile}
+              isHidden={hiddenBubbles.includes(username)}
+              onHide={() => handleToggleHideBubble(username)}
             />
           )}
 
@@ -539,6 +571,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
             .map((p, index) => {
               const streamObj = remoteStreams.get(p.socketId);
               const cameraStream = streamObj?.cameraStream || null;
+              const isHidden = hiddenBubbles.includes(p.username);
               return (
                 <RemoteCameraBubble
                   key={p.socketId}
@@ -552,6 +585,8 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
                   isFocused={focusedBubbleId === p.socketId}
                   onFocus={() => setFocusedBubbleId(p.socketId)}
                   isMobile={isMobile}
+                  isHidden={isHidden}
+                  onHide={() => handleToggleHideBubble(p.username)}
                 />
               );
             })}
@@ -632,7 +667,67 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
           onToggleFullscreen={handleToggleFullscreen}
           onLeaveRoom={handleLeaveRoom}
           isMobile={isMobile}
+          cameraBubblesMenuOpen={cameraBubblesMenuOpen}
+          onToggleCameraBubblesMenu={handleToggleCameraBubblesMenu}
         />
+      )}
+
+      {/* Camera Bubbles Visibility Checklist Overlay */}
+      {cameraBubblesMenuOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-45" 
+            onClick={() => setCameraBubblesMenuOpen(false)} 
+          />
+          <div 
+            className="absolute bottom-24 right-4 w-64 bg-slate-900/95 backdrop-blur border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+              <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Camera Bubbles
+              </h4>
+              <button 
+                onClick={() => setCameraBubblesMenuOpen(false)}
+                className="text-gray-400 hover:text-white text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+            
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {/* Local User */}
+              <label className="flex items-center justify-between p-2 rounded-lg bg-slate-950/45 hover:bg-slate-950/70 cursor-pointer select-none transition-colors">
+                <span className="text-xs text-gray-200 truncate max-w-[150px]">
+                  {username} (You)
+                </span>
+                <input 
+                  type="checkbox"
+                  checked={!hiddenBubbles.includes(username)}
+                  onChange={() => handleToggleHideBubble(username)}
+                  className="w-4 h-4 accent-indigo-500 rounded border-white/10"
+                />
+              </label>
+              
+              {/* Remote Users */}
+              {participants
+                .filter((p) => p.socketId !== socketService.socket?.id)
+                .map((p) => (
+                  <label key={p.socketId} className="flex items-center justify-between p-2 rounded-lg bg-slate-950/45 hover:bg-slate-950/70 cursor-pointer select-none transition-colors">
+                    <span className="text-xs text-gray-200 truncate max-w-[150px]">
+                      {p.username}
+                    </span>
+                    <input 
+                      type="checkbox"
+                      checked={!hiddenBubbles.includes(p.username)}
+                      onChange={() => handleToggleHideBubble(p.username)}
+                      className="w-4 h-4 accent-indigo-500 rounded border-white/10"
+                    />
+                  </label>
+                ))
+              }
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
