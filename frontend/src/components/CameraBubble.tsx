@@ -9,6 +9,7 @@ interface CameraBubbleProps {
   isCameraOn: boolean;
   isFocused?: boolean;
   onFocus?: () => void;
+  isMobile?: boolean;
 }
 
 export const CameraBubble: React.FC<CameraBubbleProps> = ({
@@ -18,7 +19,8 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
   isMuted,
   isCameraOn,
   isFocused = false,
-  onFocus
+  onFocus,
+  isMobile = false
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const storageKey = 'localCameraBubble';
@@ -29,10 +31,15 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     if (saved) {
       try {
         const { width, height } = JSON.parse(saved);
+        if (isMobile) {
+          const clampedWidth = Math.max(80, Math.min(200, width));
+          const clampedHeight = Math.max(60, Math.min(150, height));
+          return { width: clampedWidth, height: clampedHeight };
+        }
         return { width, height };
       } catch (e) {}
     }
-    return { width: 220, height: 160 };
+    return isMobile ? { width: 120, height: 90 } : { width: 220, height: 160 };
   });
 
   const [position, setPosition] = useState(() => {
@@ -40,13 +47,40 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     if (saved) {
       try {
         const { width, height, x, y } = JSON.parse(saved);
-        const cleanX = Math.max(10, Math.min(window.innerWidth - width - 10, x));
-        const cleanY = Math.max(10, Math.min(window.innerHeight - height - 10, y));
+        const w = isMobile ? Math.max(80, Math.min(200, width)) : width;
+        const h = isMobile ? Math.max(60, Math.min(150, height)) : height;
+        const cleanX = Math.max(10, Math.min(window.innerWidth - w - 10, x));
+        const cleanY = Math.max(10, Math.min(window.innerHeight - h - 10, y));
         return { x: cleanX, y: cleanY };
       } catch (e) {}
     }
     return { x: 20, y: 80 };
   });
+
+  useEffect(() => {
+    if (isMobile) {
+      setSize((prev) => {
+        const nextW = Math.max(80, Math.min(200, prev.width));
+        const nextH = Math.max(60, Math.min(150, prev.height));
+        return { width: nextW, height: nextH };
+      });
+      setPosition((prev) => {
+        const cleanX = Math.max(10, Math.min(window.innerWidth - 120 - 10, prev.x));
+        const cleanY = Math.max(10, Math.min(window.innerHeight - 90 - 10, prev.y));
+        return { x: cleanX, y: cleanY };
+      });
+    } else {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const { width, height } = JSON.parse(saved);
+          setSize({ width, height });
+        } catch (e) {}
+      } else {
+        setSize({ width: 220, height: 160 });
+      }
+    }
+  }, [isMobile]);
   
   const [aspectRatioLocked, setAspectRatioLocked] = useState(true); // Default: locked
   const [showDimensions, setShowDimensions] = useState(false);
@@ -154,22 +188,35 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     posStart.current = { x: position.x, y: position.y };
   };
 
-  // Double click cycling sizes: 120x90 -> 240x180 -> 420x315 -> 640x480 -> back
+  // Double click cycling sizes: 120x90 -> 240x180 -> 420x315 -> 640x480 -> back (or mobile cycles)
   const handleDoubleClick = () => {
     let nextWidth = 240;
     let nextHeight = 180;
-    if (size.width === 120 && size.height === 90) {
-      nextWidth = 240;
-      nextHeight = 180;
-    } else if (size.width === 240 && size.height === 180) {
-      nextWidth = 420;
-      nextHeight = 315;
-    } else if (size.width === 420 && size.height === 315) {
-      nextWidth = 640;
-      nextHeight = 480;
+    if (isMobile) {
+      if (size.width === 120 && size.height === 90) {
+        nextWidth = 160;
+        nextHeight = 120;
+      } else if (size.width === 160 && size.height === 120) {
+        nextWidth = 200;
+        nextHeight = 150;
+      } else {
+        nextWidth = 120;
+        nextHeight = 90;
+      }
     } else {
-      nextWidth = 120;
-      nextHeight = 90;
+      if (size.width === 120 && size.height === 90) {
+        nextWidth = 240;
+        nextHeight = 180;
+      } else if (size.width === 240 && size.height === 180) {
+        nextWidth = 420;
+        nextHeight = 315;
+      } else if (size.width === 420 && size.height === 315) {
+        nextWidth = 640;
+        nextHeight = 480;
+      } else {
+        nextWidth = 120;
+        nextHeight = 90;
+      }
     }
 
     const newX = Math.max(10, Math.min(window.innerWidth - nextWidth - 10, position.x));
@@ -185,8 +232,8 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     e.stopPropagation();
     const defaultX = 20;
     const defaultY = 80;
-    const defaultWidth = 220;
-    const defaultHeight = 160;
+    const defaultWidth = isMobile ? 120 : 220;
+    const defaultHeight = isMobile ? 90 : 160;
 
     setSize({ width: defaultWidth, height: defaultHeight });
     setPosition({ x: defaultX, y: defaultY });
@@ -229,8 +276,13 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
         }
       }
 
-      newWidth = Math.max(80, Math.min(800, newWidth));
-      newHeight = Math.max(60, Math.min(600, newHeight));
+      const minW = 80;
+      const maxW = isMobile ? 200 : 800;
+      const minH = 60;
+      const maxH = isMobile ? 150 : 600;
+
+      newWidth = Math.max(minW, Math.min(maxW, newWidth));
+      newHeight = Math.max(minH, Math.min(maxH, newHeight));
 
       const dx = newWidth - size.width;
       const dy = newHeight - size.height;
@@ -257,7 +309,7 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     return () => {
       bubble.removeEventListener('wheel', onWheel);
     };
-  }, [size, position, aspectRatioLocked]);
+  }, [size, position, aspectRatioLocked, isMobile]);
 
   // Drag and drag-resize handling logic
   useEffect(() => {
@@ -374,15 +426,19 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
       }`}
     >
       {/* Edge and Corner Resizers */}
-      <div onMouseDown={(e) => handleResizeStart(e, 'n')} className="absolute top-0 left-0 right-0 h-1.5 cursor-n-resize z-50 hover:bg-indigo-500/20 transition-colors" />
-      <div onMouseDown={(e) => handleResizeStart(e, 's')} className="absolute bottom-0 left-0 right-0 h-1.5 cursor-s-resize z-50 hover:bg-indigo-500/20 transition-colors" />
-      <div onMouseDown={(e) => handleResizeStart(e, 'w')} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-50 hover:bg-indigo-500/20 transition-colors" />
-      <div onMouseDown={(e) => handleResizeStart(e, 'e')} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-50 hover:bg-indigo-500/20 transition-colors" />
-      
-      <div onMouseDown={(e) => handleResizeStart(e, 'nw')} className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize z-[60]" />
-      <div onMouseDown={(e) => handleResizeStart(e, 'ne')} className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize z-[60]" />
-      <div onMouseDown={(e) => handleResizeStart(e, 'sw')} className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize z-[60]" />
-      <div onMouseDown={(e) => handleResizeStart(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-[60]" />
+      {!isMobile && (
+        <>
+          <div onMouseDown={(e) => handleResizeStart(e, 'n')} className="absolute top-0 left-0 right-0 h-1.5 cursor-n-resize z-50 hover:bg-indigo-500/20 transition-colors" />
+          <div onMouseDown={(e) => handleResizeStart(e, 's')} className="absolute bottom-0 left-0 right-0 h-1.5 cursor-s-resize z-50 hover:bg-indigo-500/20 transition-colors" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'w')} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-50 hover:bg-indigo-500/20 transition-colors" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'e')} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-50 hover:bg-indigo-500/20 transition-colors" />
+          
+          <div onMouseDown={(e) => handleResizeStart(e, 'nw')} className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize z-[60]" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'ne')} className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize z-[60]" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'sw')} className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize z-[60]" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-[60]" />
+        </>
+      )}
 
       {/* Title/Drag Bar */}
       <div 
@@ -452,13 +508,15 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
         )}
 
         {/* Diagonal Resize Assist Indicator */}
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'se')}
-          className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5 group z-50"
-          title="Resize bubble"
-        >
-          <Maximize2 className="w-2.5 h-2.5 text-gray-400/60 group-hover:text-indigo-400 transition-colors" />
-        </div>
+        {!isMobile && (
+          <div
+            onMouseDown={(e) => handleResizeStart(e, 'se')}
+            className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5 group z-50"
+            title="Resize bubble"
+          >
+            <Maximize2 className="w-2.5 h-2.5 text-gray-400/60 group-hover:text-indigo-400 transition-colors" />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -85,10 +85,19 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
   }, []);
 
   // Sidebars
-  const [chatOpen, setChatOpen] = useState(true);
-  const [participantsOpen, setParticipantsOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 768);
+  const [participantsOpen, setParticipantsOpen] = useState(() => window.innerWidth >= 768);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // References for sidebar state to prevent stale closures in socket handlers
   const chatOpenRef = useRef(chatOpen);
@@ -463,6 +472,17 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
       {/* Main View Area */}
       <div className="flex-1 flex gap-4 px-4 overflow-hidden py-4 z-10 relative">
         
+        {/* Backdrop for mobile drawers */}
+        {isMobile && (participantsOpen || chatOpen) && (
+          <div 
+            className="fixed inset-0 bg-black/60 z-45 animate-in fade-in duration-200"
+            onClick={() => {
+              setParticipantsOpen(false);
+              setChatOpen(false);
+            }}
+          />
+        )}
+
         {/* Central WebRTC Media Stage / Theater Mode Container */}
         <div 
           id="stage-container"
@@ -490,6 +510,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
               isCameraOn={isCameraOn}
               isFocused={focusedBubbleId === 'local'}
               onFocus={() => setFocusedBubbleId('local')}
+              isMobile={isMobile}
             />
           )}
 
@@ -498,15 +519,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
             .filter((p) => p.socketId !== socketService.socket?.id)
             .map((p, index) => {
               const streamObj = remoteStreams.get(p.socketId);
-              const peerId = p.socketId;
               const cameraStream = streamObj?.cameraStream || null;
-              
-              console.log(
-                "RENDER CAMERA",
-                peerId,
-                !!cameraStream
-              );
-
               return (
                 <RemoteCameraBubble
                   key={p.socketId}
@@ -519,6 +532,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
                   index={index}
                   isFocused={focusedBubbleId === p.socketId}
                   onFocus={() => setFocusedBubbleId(p.socketId)}
+                  isMobile={isMobile}
                 />
               );
             })}
@@ -527,9 +541,12 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
           {chatOpen && (
             <div 
               className={
-                theaterMode 
-                  ? "absolute top-5 right-5 w-[380px] h-[70vh] z-30 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
-                  : "absolute right-4 top-4 bottom-4 w-80 z-30 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
+                isMobile
+                  ? "fixed inset-y-0 right-0 w-80 max-w-[85vw] z-50 bg-[#0a0b0d]/95 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+                  : (theaterMode 
+                      ? "absolute top-5 right-5 w-[380px] h-[70vh] z-30 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
+                      : "absolute right-4 top-4 bottom-4 w-80 z-30 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
+                    )
               }
             >
               <ChatPanel
@@ -544,7 +561,13 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
 
           {/* Floating Participant Overlay (Only in Normal Mode) */}
           {!theaterMode && participantsOpen && (
-            <div className="absolute left-4 top-4 bottom-4 w-80 z-40 flex flex-col overflow-hidden animate-in slide-in-from-left duration-200">
+            <div 
+              className={
+                isMobile
+                  ? "fixed inset-y-0 left-0 w-80 max-w-[85vw] z-50 bg-[#0a0b0d]/95 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300"
+                  : "absolute left-4 top-4 bottom-4 w-80 z-40 flex flex-col overflow-hidden animate-in slide-in-from-left duration-200"
+              }
+            >
               <ParticipantList
                 participants={participants}
                 localSocketId={socketService.socket?.id || null}
@@ -592,6 +615,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
           onToggleParticipants={() => setParticipantsOpen(!participantsOpen)}
           onToggleFullscreen={handleToggleFullscreen}
           onLeaveRoom={handleLeaveRoom}
+          isMobile={isMobile}
         />
       )}
     </div>
