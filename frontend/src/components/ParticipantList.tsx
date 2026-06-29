@@ -14,7 +14,7 @@ interface ParticipantListProps {
   localSocketId: string | null;
 }
 
-export const ParticipantList: React.FC<ParticipantListProps> = ({
+export const ParticipantList = React.memo<ParticipantListProps>(({
   participants,
   localSocketId
 }) => {
@@ -114,4 +114,4 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
       </div>
     </div>
   );
-};
+});

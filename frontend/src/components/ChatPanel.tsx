@@ -19,7 +19,7 @@ interface ChatPanelProps {
 
 const QUICK_EMOJIS = ['😊', '😂', '🔥', '😮', '🍿', '🎉', '❤️', '👏', '😱', '👎'];
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({
+export const ChatPanel = React.memo<ChatPanelProps>(({
   messages,
   onSendMessage,
   localSocketId,
@@ -146,4 +146,4 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </form>
     </div>
   );
-};
+});

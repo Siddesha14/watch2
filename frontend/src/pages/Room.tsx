@@ -515,6 +515,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
           participantCount={participants.length}
           connectionState={connectionState}
           hostName={hostName}
+          isMobile={isMobile}
         />
       )}
 
