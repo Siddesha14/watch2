@@ -26,6 +26,9 @@ class WebRTCService {
 
   // Senders per peer connection and track type
   private senders = new Map<string, Map<InternalTrackType, RTCRtpSender>>();
+
+  private statsIntervalId: any = null;
+  private prevStatsMap = new Map<string, { timestamp: number; reports: Map<string, any> }>();
   
   // Local streams
   public localCameraStream: MediaStream | null = null;
@@ -87,6 +90,129 @@ class WebRTCService {
     this.onConnectionStateChangeCallback = onConnectionStateChange;
     
     this.setupSocketListeners();
+    this.startStatsLogging();
+  }
+
+  private configureScreenVideoSender(sender: RTCRtpSender, pc: RTCPeerConnection) {
+    try {
+      const parameters = sender.getParameters();
+      if (!parameters.encodings) {
+        parameters.encodings = [{}];
+      }
+      parameters.encodings.forEach(encoding => {
+        encoding.maxFramerate = 30;
+        encoding.maxBitrate = 1500000; // 1.5 Mbps
+        encoding.scaleResolutionDownBy = 1.0;
+      });
+      sender.setParameters(parameters).then(() => {
+        console.log("[PERFORMANCE] Configured screen-video RTCRtpSender encoding parameters successfully.");
+      }).catch(err => {
+        console.error("[PERFORMANCE] Error setting screen-video parameters:", err);
+      });
+
+      const transceiver = pc.getTransceivers().find(t => t.sender === sender);
+      if (transceiver && 'degradationPreference' in transceiver) {
+        (transceiver as any).degradationPreference = 'maintain-resolution';
+        console.log("[PERFORMANCE] Set transceiver degradationPreference to 'maintain-resolution'.");
+      }
+    } catch (err) {
+      console.error("[PERFORMANCE] Failed to configure screen video sender:", err);
+    }
+  }
+
+  private startStatsLogging() {
+    if (this.statsIntervalId) return;
+
+    this.statsIntervalId = setInterval(async () => {
+      if (this.connections.size === 0) return;
+
+      this.connections.forEach(async (pc, peerSocketId) => {
+        try {
+          const stats = await pc.getStats();
+          
+          let captureWidth = 0;
+          let captureHeight = 0;
+          let captureFPS = 0;
+          let outgoingBitrate = 0;
+          let rtt = 0;
+          let availableBandwidth = 0;
+          let droppedFrames = 0;
+          let decodedFrames = 0;
+          let renderFPS = 0;
+
+          stats.forEach(report => {
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              if (report.frameWidth) captureWidth = report.frameWidth;
+              if (report.frameHeight) captureHeight = report.frameHeight;
+              if (report.framesPerSecond) captureFPS = report.framesPerSecond;
+            }
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              if (report.currentRoundTripTime !== undefined) {
+                rtt = report.currentRoundTripTime * 1000;
+              }
+              if (report.availableOutgoingBitrate !== undefined) {
+                availableBandwidth = report.availableOutgoingBitrate / 1000;
+              }
+            }
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+              if (report.framesDecoded) decodedFrames = report.framesDecoded;
+              if (report.framesPerSecond) renderFPS = report.framesPerSecond;
+              if (report.framesDropped) droppedFrames = report.framesDropped;
+            }
+          });
+
+          const prevStats = this.prevStatsMap.get(peerSocketId);
+          const now = Date.now();
+          if (prevStats) {
+            let bytesSentDelta = 0;
+            const timeDelta = (now - prevStats.timestamp) / 1000;
+            
+            stats.forEach(report => {
+              if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                const prevReport = prevStats.reports.get(report.id);
+                if (prevReport && report.bytesSent !== undefined && prevReport.bytesSent !== undefined) {
+                  bytesSentDelta = report.bytesSent - prevReport.bytesSent;
+                }
+              }
+            });
+
+            if (timeDelta > 0) {
+              outgoingBitrate = (bytesSentDelta * 8) / timeDelta / 1000;
+            }
+          }
+
+          const reportsMap = new Map<string, any>();
+          stats.forEach(report => {
+            if (report.type === 'outbound-rtp') {
+              reportsMap.set(report.id, { bytesSent: report.bytesSent });
+            }
+          });
+          this.prevStatsMap.set(peerSocketId, { timestamp: now, reports: reportsMap });
+
+          console.log(
+            `[PERFORMANCE] Peer: ${peerSocketId} | ` +
+            `Capture: ${captureWidth}x${captureHeight} @ ${captureFPS} FPS | ` +
+            `Outgoing Bitrate: ${outgoingBitrate.toFixed(1)} kbps | ` +
+            `RTT: ${rtt.toFixed(1)}ms | ` +
+            `Available Outgoing Bitrate: ${availableBandwidth.toFixed(1)} kbps | ` +
+            `Dropped Frames: ${droppedFrames} | ` +
+            `Decoded Frames: ${decodedFrames} | ` +
+            `Render FPS: ${renderFPS}`
+          );
+
+        } catch (err) {
+          console.warn("[PERFORMANCE] Error fetching WebRTC connection stats:", err);
+        }
+      });
+    }, 5000);
+  }
+
+  private stopStatsLogging() {
+    if (this.statsIntervalId) {
+      clearInterval(this.statsIntervalId);
+      this.statsIntervalId = null;
+    }
+    this.prevStatsMap.clear();
   }
 
   private setupSocketListeners() {
@@ -309,6 +435,9 @@ class WebRTCService {
       existingSender.replaceTrack(track).catch(err => {
         console.error(`[WEBRTC] Error replacing track for ${peerSocketId} (${type}):`, err);
       });
+      if (type === 'screen-video') {
+        this.configureScreenVideoSender(existingSender, pc);
+      }
       return;
     }
 
@@ -316,6 +445,9 @@ class WebRTCService {
     try {
       const sender = pc.addTrack(track, stream);
       senderMap.set(type, sender);
+      if (type === 'screen-video') {
+        this.configureScreenVideoSender(sender, pc);
+      }
     } catch (err) {
       console.error(`[WEBRTC] Error adding track for ${peerSocketId} (${type}):`, err);
     }
@@ -401,14 +533,31 @@ class WebRTCService {
   public async startScreenShare(roomId: string): Promise<MediaStream> {
     if (this.localScreenStream) return this.localScreenStream;
 
+    console.log("[WEBRTC] Requesting screen capture with optimized constraints: 720p @ 30 FPS");
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        frameRate: { ideal: 60 }
+        width: { ideal: 1280, max: 1280 },
+        height: { ideal: 720, max: 720 },
+        frameRate: { ideal: 30, max: 30 }
       },
       audio: true
     });
+
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      try {
+        await videoTrack.applyConstraints({
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
+          frameRate: { ideal: 30, max: 30 }
+        });
+      } catch (err) {
+        console.warn("[PERFORMANCE] Could not apply track constraints on display track:", err);
+      }
+
+      const settings = videoTrack.getSettings();
+      console.log(`[PERFORMANCE] Screen capture settings: width=${settings.width}, height=${settings.height}, frameRate=${settings.frameRate}`);
+    }
 
     this.localScreenStream = stream;
     console.log("[WEBRTC] Screen share started");
@@ -514,6 +663,7 @@ class WebRTCService {
   // Clear all connections when leaving a room
   public clearAll() {
     console.log("[WEBRTC] Clearing all peer connections and local streams");
+    this.stopStatsLogging();
     this.connections.forEach((_pc, peerSocketId) => this.closeConnection(peerSocketId));
     this.connections.clear();
     this.peerStates.clear();

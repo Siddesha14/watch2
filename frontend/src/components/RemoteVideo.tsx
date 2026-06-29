@@ -9,24 +9,20 @@ interface RemoteVideoProps {
 
 export const RemoteVideo: React.FC<RemoteVideoProps> = ({
   screenShareStream,
-  peerId,
+  peerId: _peerId,
   isLocalScreenOwner = false
 }) => {
   const screenVideoRef = useRef<HTMLVideoElement>(null);
 
   // Bind screen share stream to element
   useEffect(() => {
-    console.log("REMOTE VIDEO STREAM", screenShareStream);
     if (screenVideoRef.current && screenShareStream) {
-      screenVideoRef.current.srcObject = screenShareStream;
+      if (screenVideoRef.current.srcObject !== screenShareStream) {
+        console.log("[PERFORMANCE] Attaching remote screen stream:", screenShareStream.id);
+        screenVideoRef.current.srcObject = screenShareStream;
+      }
     }
-    const screenStream = screenShareStream;
-    console.log(
-      "ATTACH SCREEN",
-      peerId,
-      screenStream?.id
-    );
-  }, [screenShareStream, peerId]);
+  }, [screenShareStream]);
 
   return (
     <div 
