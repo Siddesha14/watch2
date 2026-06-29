@@ -406,6 +406,25 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
     socketService.sendMessage(roomId, text);
   };
 
+  const handleToggleChat = () => {
+    const nextChatOpen = !chatOpen;
+    setChatOpen(nextChatOpen);
+    if (nextChatOpen) {
+      handleClearUnread();
+      if (isMobile) {
+        setParticipantsOpen(false);
+      }
+    }
+  };
+
+  const handleToggleParticipants = () => {
+    const nextParticipantsOpen = !participantsOpen;
+    setParticipantsOpen(nextParticipantsOpen);
+    if (nextParticipantsOpen && isMobile) {
+      setChatOpen(false);
+    }
+  };
+
   // Video sync emitters disabled
 
   const handleLeaveRoom = () => {
@@ -457,7 +476,7 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
   // Custom playback events disabled
 
   return (
-    <div id="room-container" className="h-screen w-screen flex flex-col justify-between overflow-hidden bg-[#0a0b0d] text-white relative">
+    <div id="room-container" className="h-[100dvh] w-screen flex flex-col justify-between overflow-hidden bg-[#0a0b0d] text-white relative">
       
       {/* Top Navigation */}
       {!theaterMode && (
@@ -608,11 +627,8 @@ export const Room: React.FC<RoomProps> = ({ roomId, username, onLeave }) => {
           onToggleMic={handleToggleMic}
           onToggleCamera={handleToggleCamera}
           onToggleScreenShare={handleToggleScreenShare}
-          onToggleChat={() => {
-            setChatOpen(!chatOpen);
-            if (!chatOpen) handleClearUnread();
-          }}
-          onToggleParticipants={() => setParticipantsOpen(!participantsOpen)}
+          onToggleChat={handleToggleChat}
+          onToggleParticipants={handleToggleParticipants}
           onToggleFullscreen={handleToggleFullscreen}
           onLeaveRoom={handleLeaveRoom}
           isMobile={isMobile}

@@ -60,7 +60,7 @@ export const ControlDock: React.FC<ControlDockProps> = ({
                   onToggleParticipants();
                   setMoreOpen(false);
                 }}
-                className={`p-3 rounded-xl transition-all active:scale-95 border flex items-center justify-center gap-2 cursor-pointer text-xs font-medium ${
+                className={`p-3 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-95 border flex items-center justify-center gap-2 cursor-pointer text-xs font-medium ${
                   participantsOpen
                     ? 'bg-slate-900 border-indigo-500/30 text-indigo-400 shadow'
                     : 'bg-slate-800 border-white/5 text-gray-300 hover:bg-slate-700'
@@ -76,31 +76,19 @@ export const ControlDock: React.FC<ControlDockProps> = ({
                   onToggleChat();
                   setMoreOpen(false);
                 }}
-                className={`p-3 rounded-xl transition-all active:scale-95 border flex items-center justify-center gap-2 cursor-pointer text-xs font-medium ${
+                className={`p-3 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-95 border flex items-center justify-center gap-2 cursor-pointer text-xs font-medium ${
                   chatOpen
                     ? 'bg-slate-900 border-indigo-500/30 text-indigo-400 shadow'
                     : 'bg-slate-800 border-white/5 text-gray-300 hover:bg-slate-700'
                 }`}
               >
-                <div className="relative">
+                <div className="relative flex items-center">
                   <MessageSquare className="w-4 h-4" />
                   {!chatOpen && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-indigo-500 rounded-full" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full" />
                   )}
                 </div>
                 <span>Chat {!chatOpen && unreadCount > 0 ? `(${unreadCount})` : ''}</span>
-              </button>
-
-              {/* Fullscreen Trigger */}
-              <button
-                onClick={() => {
-                  onToggleFullscreen();
-                  setMoreOpen(false);
-                }}
-                className="p-3 rounded-xl bg-slate-800 text-gray-100 border border-white/5 hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs font-medium"
-              >
-                <Maximize className="w-4 h-4" />
-                <span>Fullscreen</span>
               </button>
 
               {/* Leave Room Button */}
@@ -109,7 +97,7 @@ export const ControlDock: React.FC<ControlDockProps> = ({
                   onLeaveRoom();
                   setMoreOpen(false);
                 }}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs active:scale-95 transition-all shadow-lg shadow-rose-600/30 cursor-pointer"
+                className="col-span-2 flex items-center justify-center gap-2 p-3 min-w-[44px] min-h-[44px] rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs active:scale-95 transition-all shadow-lg shadow-rose-600/30 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Leave Room</span>
@@ -119,11 +107,11 @@ export const ControlDock: React.FC<ControlDockProps> = ({
         )}
 
         {/* Dock single row layout */}
-        <div className="glass-premium flex items-center justify-around gap-2 px-4 py-3 rounded-2xl shadow-2xl relative z-40">
+        <div className="glass-premium flex flex-row flex-nowrap items-center justify-around gap-2 px-4 py-3 rounded-2xl shadow-2xl relative z-40">
           {/* Microphone Toggle */}
           <button
             onClick={onToggleMic}
-            className={`p-3.5 rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer ${
+            className={`p-3.5 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer ${
               isMuted 
                 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 glow-danger' 
                 : 'bg-slate-800 text-gray-100 border border-white/5 hover:bg-slate-700'
@@ -135,7 +123,7 @@ export const ControlDock: React.FC<ControlDockProps> = ({
           {/* Camera Toggle */}
           <button
             onClick={onToggleCamera}
-            className={`p-3.5 rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer ${
+            className={`p-3.5 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer ${
               !isCameraOn
                 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 glow-danger'
                 : 'bg-slate-800 text-gray-100 border border-white/5 hover:bg-slate-700'
@@ -147,7 +135,7 @@ export const ControlDock: React.FC<ControlDockProps> = ({
           {/* Screen Share Toggle */}
           <button
             onClick={onToggleScreenShare}
-            className={`p-3.5 rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer ${
+            className={`p-3.5 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer ${
               isSharingScreen
                 ? 'bg-indigo-600 text-white hover:bg-indigo-500 glow-primary'
                 : 'bg-slate-800 text-gray-100 border border-white/5 hover:bg-slate-700'
@@ -156,10 +144,18 @@ export const ControlDock: React.FC<ControlDockProps> = ({
             {isSharingScreen ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
           </button>
 
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={onToggleFullscreen}
+            className="p-3.5 min-w-[44px] min-h-[44px] rounded-xl bg-slate-800 text-gray-100 border border-white/5 hover:bg-slate-700 active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-md"
+          >
+            <Maximize className="w-5 h-5" />
+          </button>
+
           {/* More Toggle */}
           <button
             onClick={() => setMoreOpen(!moreOpen)}
-            className={`p-3.5 rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer relative ${
+            className={`p-3.5 min-w-[44px] min-h-[44px] rounded-xl transition-all active:scale-90 shadow-md flex items-center justify-center cursor-pointer relative ${
               moreOpen
                 ? 'bg-indigo-600 text-white hover:bg-indigo-500 glow-primary'
                 : 'bg-slate-800 text-gray-100 border border-white/5 hover:bg-slate-700'

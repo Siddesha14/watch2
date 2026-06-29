@@ -39,7 +39,7 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
         return { width, height };
       } catch (e) {}
     }
-    return isMobile ? { width: 120, height: 90 } : { width: 220, height: 160 };
+    return isMobile ? { width: 100, height: 75 } : { width: 220, height: 160 };
   });
 
   const [position, setPosition] = useState(() => {
@@ -54,7 +54,7 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
         return { x: cleanX, y: cleanY };
       } catch (e) {}
     }
-    return { x: 20, y: 80 };
+    return isMobile ? { x: 10, y: 70 } : { x: 20, y: 80 };
   });
 
   useEffect(() => {
@@ -65,8 +65,8 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
         return { width: nextW, height: nextH };
       });
       setPosition((prev) => {
-        const cleanX = Math.max(10, Math.min(window.innerWidth - 120 - 10, prev.x));
-        const cleanY = Math.max(10, Math.min(window.innerHeight - 90 - 10, prev.y));
+        const cleanX = Math.max(10, Math.min(window.innerWidth - 100 - 10, prev.x));
+        const cleanY = Math.max(10, Math.min(window.innerHeight - 75 - 10, prev.y));
         return { x: cleanX, y: cleanY };
       });
     } else {
@@ -188,20 +188,20 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     posStart.current = { x: position.x, y: position.y };
   };
 
-  // Double click cycling sizes: 120x90 -> 240x180 -> 420x315 -> 640x480 -> back (or mobile cycles)
+  // Double click cycling sizes: 100x75 -> 140x105 -> 180x135 -> back (or mobile cycles)
   const handleDoubleClick = () => {
     let nextWidth = 240;
     let nextHeight = 180;
     if (isMobile) {
-      if (size.width === 120 && size.height === 90) {
-        nextWidth = 160;
-        nextHeight = 120;
-      } else if (size.width === 160 && size.height === 120) {
-        nextWidth = 200;
-        nextHeight = 150;
+      if (size.width === 100 && size.height === 75) {
+        nextWidth = 140;
+        nextHeight = 105;
+      } else if (size.width === 140 && size.height === 105) {
+        nextWidth = 180;
+        nextHeight = 135;
       } else {
-        nextWidth = 120;
-        nextHeight = 90;
+        nextWidth = 100;
+        nextHeight = 75;
       }
     } else {
       if (size.width === 120 && size.height === 90) {
@@ -230,14 +230,89 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
   // Reset bubble settings
   const handleReset = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const defaultX = 20;
-    const defaultY = 80;
-    const defaultWidth = isMobile ? 120 : 220;
-    const defaultHeight = isMobile ? 90 : 160;
+    const defaultX = isMobile ? 10 : 20;
+    const defaultY = isMobile ? 70 : 80;
+    const defaultWidth = isMobile ? 100 : 220;
+    const defaultHeight = isMobile ? 75 : 160;
 
     setSize({ width: defaultWidth, height: defaultHeight });
     setPosition({ x: defaultX, y: defaultY });
     localStorage.removeItem(storageKey);
+  };
+
+  // Touch event handlers for mobile gestures (drag and pinch resize)
+  const touchStart = useRef({ x: 0, y: 0 });
+  const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (onFocus) onFocus();
+    if (e.touches.length === 1) {
+      // Single touch = drag
+      setIsDragging(true);
+      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      posStart.current = { x: position.x, y: position.y };
+    } else if (e.touches.length === 2) {
+      // Double touch = pinch resize
+      setIsDragging(false);
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setInitialPinchDistance(dist);
+      sizeStart.current = { width: size.width, height: size.height };
+      posStart.current = { x: position.x, y: position.y };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - touchStart.current.x;
+      const dy = e.touches[0].clientY - touchStart.current.y;
+      
+      const newX = Math.max(10, Math.min(window.innerWidth - size.width - 10, posStart.current.x + dx));
+      const newY = Math.max(10, Math.min(window.innerHeight - size.height - 10, posStart.current.y + dy));
+      
+      setPosition({ x: newX, y: newY });
+    } else if (e.touches.length === 2 && initialPinchDistance !== null) {
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / initialPinchDistance;
+      
+      let newWidth = sizeStart.current.width * factor;
+      let newHeight = sizeStart.current.height * factor;
+
+      // Maintain aspect ratio
+      const ratio = sizeStart.current.width / sizeStart.current.height;
+      newHeight = newWidth / ratio;
+
+      const minW = 80;
+      const maxW = 200;
+      const minH = 60;
+      const maxH = 150;
+
+      newWidth = Math.max(minW, Math.min(maxW, newWidth));
+      newHeight = Math.max(minH, Math.min(maxH, newHeight));
+
+      const dx = newWidth - size.width;
+      const dy = newHeight - size.height;
+      let newX = position.x - dx / 2;
+      let newY = position.y - dy / 2;
+
+      newX = Math.max(10, Math.min(window.innerWidth - newWidth - 10, newX));
+      newY = Math.max(10, Math.min(window.innerHeight - newHeight - 10, newY));
+
+      setSize({ width: newWidth, height: newHeight });
+      setPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setInitialPinchDistance(null);
+    localStorage.setItem(storageKey, JSON.stringify({ width: size.width, height: size.height, x: position.x, y: position.y }));
   };
 
   // Dimensions tooltip visibility handler
@@ -411,6 +486,9 @@ export const CameraBubble: React.FC<CameraBubbleProps> = ({
     <div
       ref={bubbleRef}
       onMouseDown={onFocus}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
